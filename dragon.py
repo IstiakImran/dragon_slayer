@@ -4,6 +4,7 @@ from OpenGL.GLUT import *
 import math
 import random
 import time
+import sys  # Import sys for glutInit
 
 # --- Global State Variables ---
 # We use global variables here as is common in simple GLUT scripts.
@@ -17,12 +18,14 @@ mouse_dragging = False
 
 # Animation and Firing State
 wing_angle = 0
+body_bob = 0      # NEW: For vertical body hover
+head_turn = 0     # NEW: For head looking side-to-side
 is_firing = False
 fire_particles = []
 last_time = 0
 
 # --- Dragon Model Class ---
-# This class has been completely rewritten for much greater detail.
+# This class has been modified to accept new animation parameters.
 
 
 class Dragon:
@@ -177,19 +180,29 @@ class Dragon:
         glPopMatrix()  # Main leg transform
 
     def draw_tail(self):
-        """Draws a long, segmented tail."""
+        """Draws a long, segmented tail WITH ENHANCED MOVEMENT."""
         glColor3f(0.1, 0.6, 0.2)  # Dark Green
         glPushMatrix()
         glTranslatef(0, 1.5, -2.5)  # Start of tail
         glRotatef(15, 1, 0, 0)  # Angle tail down slightly
 
+        current_time = time.time()
         for i in range(8):
             scale_factor = 1.0 - i * 0.08
             self.draw_cube(scale=(1.5 * scale_factor, 1.5 * scale_factor, 1.5))
             glTranslatef(0, -0.1, -1.4)
-            glRotatef(2, 1, 0, 0)  # Curve it down
-            glRotatef(math.sin(time.time() * 2 + i) *
-                      2, 0, 1, 0)  # Add a slight wag
+
+            # --- MODIFIED TAIL ANIMATION ---
+            # Dynamic vertical "flick" (around X-axis)
+            flick = math.sin(current_time * 1.5 + i * 0.4) * \
+                3  # A 3-degree flick
+            glRotatef(2.0 + flick, 1, 0, 0)  # Base 2-degree down curve + flick
+
+            # Stronger side-to-side "wag" (around Y-axis)
+            wag = math.sin(current_time * 2.5 + i * 0.5) * \
+                4   # A faster, 4-degree wag
+            glRotatef(wag, 0, 1, 0)
+            # --- END MODIFICATION ---
 
         # Tail Spike
         glColor3f(0.9, 0.9, 0.2)  # Yellow
@@ -249,29 +262,40 @@ class Dragon:
 
         glPopMatrix()  # End spars transform
 
-    def draw(self, angle=0):
-        """Draws the complete, detailed dragon."""
+    def draw(self, wing_angle=0, head_angle=0):
+        """
+        Draws the complete, detailed dragon.
+        NOW ACCEPTS a head_angle for animation.
+        """
         self.draw_torso()
+
+        # --- MODIFIED to apply head rotation ---
+        # Apply head turn animation to both neck and head
+        glPushMatrix()
+        glRotatef(head_angle, 0, 1, 0)  # Rotate around the Y (vertical) axis
         self.draw_neck()
         self.draw_head()
+        glPopMatrix()  # Restore matrix after drawing rotated head/neck
+        # --- END MODIFICATION ---
+
         self.draw_legs()
-        self.draw_tail()
+        self.draw_tail()  # Tail animates itself using time.time()
 
         # Right Wing (flapping)
         glPushMatrix()
         glTranslatef(1.8, 2.5, 0.5)
-        glRotatef(angle, 0, 0, 1)
+        glRotatef(wing_angle, 0, 0, 1)  # Use passed-in wing_angle
         self.draw_wing(1)
         glPopMatrix()
         # Left Wing (flapping)
         glPushMatrix()
         glTranslatef(-1.8, 2.5, 0.5)
-        glRotatef(-angle, 0, 0, 1)
+        glRotatef(-wing_angle, 0, 0, 1)  # Use passed-in wing_angle
         self.draw_wing(-1)
         glPopMatrix()
 
 
-# --- Main Application Code (Unchanged) ---
+# --- Main Application Code ---
 # Create a single instance of the dragon model
 dragon = Dragon()
 
@@ -279,12 +303,53 @@ dragon = Dragon()
 
 
 def create_fire_particle():
-    particle = {'pos': [0, 3.5, 6.0], 'vel': [random.uniform(-0.1, 0.1), random.uniform(-0.1, 0.1), random.uniform(0.5, 0.8)],
-                'life': random.uniform(0.5, 1.5), 'size': random.uniform(0.2, 0.4), 'color': random.choice([(1, 0.2, 0), (1, 0.5, 0), (1, 1, 0)])}
+    """
+    MODIFIED to emit particles based on the current head_turn angle.
+    This ensures fire is breathed in the direction the head is facing.
+    """
+    global head_turn  # Read the current head animation state
+
+    # Base position (snout tip, straight forward)
+    base_pos = [0.0, 3.5, 6.0]
+    # Base velocity (randomized, but mostly forward in Z)
+    base_vel = [random.uniform(-0.1, 0.1),
+                random.uniform(-0.1, 0.1),
+                random.uniform(0.5, 0.8)]
+
+    # Convert head turn angle to radians for trig
+    angle_rad = math.radians(head_turn)
+    sin_a = math.sin(angle_rad)
+    cos_a = math.cos(angle_rad)
+
+    # --- Rotate both the starting position and the velocity vector ---
+    # by the head_turn angle around the Y-axis.
+
+    # Rotate position:
+    # new_x = x*cos - z*sin (original formula is x*cos + z*sin, but our z is positive 'forward')
+    # Let's use standard rotation: x' = x*cos + z*sin, z' = -x*sin + z*cos
+    # Since base_pos[0] (x) is 0:
+    rotated_pos_x = base_pos[2] * sin_a
+    rotated_pos_z = base_pos[2] * cos_a
+
+    # Rotate velocity:
+    vx = base_vel[0]
+    vz = base_vel[2]
+    rotated_vel_x = vx * cos_a + vz * sin_a
+    rotated_vel_z = -vx * sin_a + vz * cos_a
+
+    # Create the particle with the new rotated position and velocity
+    particle = {
+        'pos': [rotated_pos_x, base_pos[1], rotated_pos_z],
+        'vel': [rotated_vel_x, base_vel[1], rotated_vel_z],
+        'life': random.uniform(0.5, 1.5),
+        'size': random.uniform(0.2, 0.4),
+        'color': random.choice([(1, 0.2, 0), (1, 0.5, 0), (1, 1, 0)])
+    }
     fire_particles.append(particle)
 
 
 def update_fire_particles():
+    """Particles update themselves based on their own velocity. (Unchanged)"""
     global fire_particles
     for p in fire_particles:
         p['pos'][0] += p['vel'][0]
@@ -296,17 +361,29 @@ def update_fire_particles():
 
 
 def draw_fire():
+    """Draws particles in their calculated world-space positions. (Unchanged)"""
     glDisable(GL_LIGHTING)
+    glEnable(GL_BLEND)  # Added blending for a nicer fire effect
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE)  # Additive blending
+    glDepthMask(GL_FALSE)  # Don't write to depth buffer, prevents ugly squares
+
     glBegin(GL_QUADS)
     for p in fire_particles:
-        glColor3fv(p['color'])
+        # Fade particle out as it dies
+        alpha = p['life'] / 1.5  # Assume max life is 1.5
+        glColor4f(p['color'][0], p['color'][1], p['color'][2], alpha)
         x, y, z = p['pos']
         s = p['size'] / 2
+
+        # Simple billboard (always faces camera, but this is good enough)
         glVertex3f(x - s, y - s, z)
         glVertex3f(x + s, y - s, z)
         glVertex3f(x + s, y + s, z)
         glVertex3f(x - s, y + s, z)
     glEnd()
+
+    glDepthMask(GL_TRUE)  # Re-enable depth writing
+    glDisable(GL_BLEND)  # Disable blending
     glEnable(GL_LIGHTING)
 
 # --- Drawing and Scene Functions ---
@@ -326,11 +403,12 @@ def draw_ground():
 
 
 def display():
-    """Main display callback function."""
+    """Main display callback function. MODIFIED for new animations."""
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
 
+    # Camera transforms (unchanged)
     glTranslatef(0.0, 0.0, camera_zoom)
     glRotatef(camera_rot_x, 1, 0, 0)
     glRotatef(camera_rot_y, 0, 1, 0)
@@ -338,14 +416,20 @@ def display():
     draw_ground()
 
     glPushMatrix()
-    glTranslatef(0, -2, 0)
-    dragon.draw(wing_angle)
-    # Adjust fire position to match new head position
+
+    # --- MODIFIED to apply body bob animation ---
+    # Apply the global body_bob to the dragon's main translation
+    glTranslatef(0, -2 + body_bob, 0)
+
+    # Pass BOTH animation angles to the draw method
+    dragon.draw(wing_angle, head_turn)
+
+    # Draw fire particles. They exist in this coordinate space.
+    # We DO NOT rotate the particle system, as particles are spawned
+    # with the correct rotation and live independently.
     if fire_particles:
-        glPushMatrix()
-        glTranslatef(0, 0, -1)
-        draw_fire()
-        glPopMatrix()
+        draw_fire()  # Removed the extra push/pop/translate
+
     glPopMatrix()
 
     glutSwapBuffers()
@@ -361,13 +445,27 @@ def reshape(w, h):
 
 
 def idle():
-    global wing_angle, last_time
+    """MODIFIED to update all animation variables."""
+    global wing_angle, last_time, body_bob, head_turn
     current_time = time.time()
     if last_time == 0:
         last_time = current_time
+
+    # --- UPDATE ALL ANIMATION GLOBALS ---
+    # Wing flap (original)
     wing_angle = math.sin(current_time * 5) * 40
+
+    # NEW: Body bob (syncs with wings but has a smaller motion)
+    body_bob = math.sin(current_time * 5) * 0.2
+
+    # NEW: Head turn (a slower, independent motion)
+    head_turn = math.sin(current_time * 0.8) * \
+        12  # A 12-degree turn side-to-side
+    # --- END OF ANIMATION UPDATES ---
+
     if is_firing and len(fire_particles) < 100:
         create_fire_particle()
+
     update_fire_particles()
     glutPostRedisplay()
 
@@ -381,6 +479,8 @@ def keyboard(key, x, y):
         camera_zoom += 1
     elif key == 's':
         camera_zoom -= 1
+    elif key == 'q' or key == chr(27):  # Add 'q' or ESC to quit
+        sys.exit(0)
 
 
 def keyboard_up(key, x, y):
@@ -436,7 +536,7 @@ def main():
     glutInit(sys.argv)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     glutInitWindowSize(1200, 800)
-    glutCreateWindow(b"Detailed 3D Dragon Viewer")
+    glutCreateWindow(b"Detailed Animated 3D Dragon Viewer")  # Updated title
     init()
     glutDisplayFunc(display)
     glutReshapeFunc(reshape)
@@ -445,7 +545,7 @@ def main():
     glutKeyboardUpFunc(keyboard_up)
     glutMouseFunc(mouse)
     glutMotionFunc(motion)
-    print("Controls:\n  - Left Click + Drag: Rotate\n  - 'f' (hold): Breathe Fire\n  - 'w'/'s': Zoom")
+    print("Controls:\n  - Left Click + Drag: Rotate\n  - 'f' (hold): Breathe Fire\n  - 'w'/'s': Zoom\n  - 'q' or ESC: Quit")
     glutMainLoop()
 
 
