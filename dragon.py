@@ -13,21 +13,25 @@ import sys
 camera_rot_x = -20
 camera_rot_y = 0
 camera_zoom = -40
+head_rot_x = 0.0
+head_rot_y = 0.0
 last_mouse_pos = {'x': 0, 'y': 0}
 mouse_dragging = False
+right_mouse_dragging = False
 
 # Animation and Firing State
 wing_angle = 0
-is_firing = False
-fire_particles = []
+jaw_angle = 0.0
+fireballs = []
+embers = []
 last_time = 0
+delta_time = 0
 
 # Centralized animation parameters
-breathing_offset = 0.0  # For the body's up/down breathing motion
-tail_sway_angle = 0.0   # For the tail's base side-to-side sway
+breathing_offset = 0.0
+tail_sway_angle = 0.0
 
 # --- Dragon Model Class ---
-# This class has been updated with more dynamic and detailed parts.
 
 
 class Dragon:
@@ -79,56 +83,72 @@ class Dragon:
         """Draws the spinal plates with variable sizes."""
         glColor3f(0.8, 0.1, 0.1)  # Red
         for i in range(5):
-            # Make plates in the middle larger, tapering at the ends
             size_multiplier = 1.0 - abs(i - 2) * 0.3
             self.draw_pyramid(scale=(0.8 * size_multiplier, 1.5 * size_multiplier, 0.3),
                               position=(0, 3.5, 2.0 - i * 1.2))
 
     def draw_torso(self):
         """Draws the main body, chest, and spinal plates."""
-        # Main Body
-        glColor3f(0.1, 0.6, 0.2)  # Dark Green
+        glColor3f(0.1, 0.6, 0.2)
         self.draw_cube(scale=(3.5, 3, 5.5), position=(0, 1.5, 0))
-        # Chest
-        glColor3f(0.2, 0.7, 0.3)  # Slightly Lighter Green
+        glColor3f(0.2, 0.7, 0.3)
         self.draw_cube(scale=(4, 3.5, 2), position=(0, 1.5, 1.5))
-        # Underbelly Plates
-        glColor3f(0.9, 0.9, 0.2)  # Yellow
+        glColor3f(0.9, 0.9, 0.2)
         for i in range(5):
             self.draw_cube(scale=(2.5, 0.4, 0.8),
                            position=(0, -0.2, 2.0 - i * 1.0))
-        # Spinal Plates
         self.draw_spine()
 
-    def draw_head(self, breathing_offset=0.0):
-        """Draws a much more detailed head that nods with breathing, now with eyes."""
+    def draw_head(self, breathing_offset=0.0, head_rot_x=0.0, head_rot_y=0.0, jaw_angle=0.0):
+        """Draws a much more detailed head that nods, aims, and opens its mouth."""
         glPushMatrix()
-        glTranslatef(0, 3.5, 3.0)  # Position the whole head assembly
-
-        # Add a subtle nod with the breathing
+        glTranslatef(0, 3.5, 3.0)
         glRotatef(breathing_offset * -20, 1, 0, 0)
+        glRotatef(head_rot_y, 0, 1, 0)
+        glRotatef(head_rot_x, 1, 0, 0)
 
-        # Main Head Block
-        glColor3f(0.1, 0.6, 0.2)  # Dark Green
+        # Main Head & Snout
+        glColor3f(0.1, 0.6, 0.2)
         self.draw_cube(scale=(2, 1.8, 2.5), position=(0, 0, 0))
-        # Snout
         self.draw_cube(scale=(1.5, 1.2, 2.5), position=(0, -0.2, 2.0))
-        # Lower Jaw
-        glColor3f(0.2, 0.7, 0.3)  # Lighter Green
-        self.draw_cube(scale=(1.4, 0.5, 2.3), position=(0, -0.9, 2.0))
-        # Teeth
+
+        # ### FIX ###: Upper teeth are now rotated to point downwards.
         glColor3f(1.0, 1.0, 0.9)  # Off-white
-        for i in range(3):
-            self.draw_pyramid(scale=(0.1, 0.2, 0.1),
-                              position=(-0.5 + i*0.5, -0.55, 3.0))
-        # Eyes - NEW
-        glColor3f(1.0, 0.0, 0.0)  # Red Eyes
-        self.draw_sphere(radius=0.2, position=(-0.6, 0.5, 1.5)
-                         )  # Adjusted Z for snout
-        self.draw_sphere(radius=0.2, position=(
-            0.6, 0.5, 1.5))  # Adjusted Z for snout
+        for i in range(5):
+            glPushMatrix()
+            # Move to the position under the snout
+            glTranslatef(-0.6 + i*0.3, -0.55, 3.0)
+            # Rotate 180 degrees around the X-axis to flip the pyramid
+            glRotatef(180, 1, 0, 0)
+            # Draw the pyramid at its new, rotated origin
+            self.draw_pyramid(scale=(0.2, 0.8, 0.2), position=(0, 0, 0))
+            glPopMatrix()
+
+        # Lower Jaw
+        glPushMatrix()
+        glTranslatef(0, -0.7, 0.85)
+        glRotatef(jaw_angle, 1, 0, 0)
+        glTranslatef(0, -0.2, 1.15)
+        glColor3f(0.2, 0.7, 0.3)
+        self.draw_cube(scale=(1.4, 0.5, 2.3))
+
+        # ### FIX ###: Lower teeth are made larger to be more visible.
+        glColor3f(1.0, 1.0, 0.9)
+        for i in range(4):
+            # Left side
+            self.draw_pyramid(scale=(0.2, 0.7, 0.2),  # Increased scale
+                              position=(-0.5, 0.25, -0.8 + i*0.5))
+            # Right side
+            self.draw_pyramid(scale=(0.2, 0.7, 0.2),  # Increased scale
+                              position=(0.5, 0.25, -0.8 + i*0.5))
+        glPopMatrix()  # End jaw matrix
+
+        # Eyes
+        glColor3f(1.0, 0.0, 0.0)
+        self.draw_sphere(radius=0.2, position=(-0.6, 0.5, 1.5))
+        self.draw_sphere(radius=0.2, position=(0.6, 0.5, 1.5))
         # Horns
-        glColor3f(0.9, 0.9, 0.2)  # Yellow
+        glColor3f(0.9, 0.9, 0.2)
         self.draw_pyramid(scale=(0.4, 2.0, 0.4), position=(-0.8, 0.8, -0.5))
         self.draw_pyramid(scale=(0.4, 2.0, 0.4), position=(0.8, 0.8, -0.5))
         self.draw_pyramid(scale=(0.3, 1.5, 0.3), position=(-0.5, 0.8, -1.2))
@@ -138,7 +158,7 @@ class Dragon:
 
     def draw_neck(self):
         """Draws a curved, segmented neck."""
-        glColor3f(0.1, 0.6, 0.2)  # Dark Green
+        glColor3f(0.1, 0.6, 0.2)
         glPushMatrix()
         glTranslatef(0, 2.5, 2.5)
         self.draw_cube(scale=(2, 2, 1))
@@ -148,237 +168,236 @@ class Dragon:
         glPopMatrix()
 
     def draw_legs(self):
-        """Draws four jointed legs with claws."""
         self.draw_leg(position=(-2.2, 0, 1.5))
         self.draw_leg(position=(2.2, 0, 1.5))
         self.draw_leg(position=(-1.8, 0, -2.0), is_rear=True)
         self.draw_leg(position=(1.8, 0, -2.0), is_rear=True)
 
     def draw_leg(self, position, is_rear=False):
-        """Helper to draw one complete leg."""
         glPushMatrix()
         glTranslatef(*position)
-
-        thigh_angle = -20 if is_rear else 10
-        glColor3f(0.1, 0.6, 0.2)  # Dark Green
+        initial_leg_angle = 45 if is_rear else 55
+        glRotatef(initial_leg_angle, 1, 0, 0)
+        glColor3f(0.1, 0.6, 0.2)
         glPushMatrix()
-        glRotatef(thigh_angle, 1, 0, 0)
+        glRotatef(-40, 1, 0, 0)
         self.draw_cube(scale=(0.8, 2.0, 1.0), position=(0, -1.0, 0))
-
         glTranslatef(0, -2.0, 0)
-        glRotatef(-thigh_angle + 10, 1, 0, 0)
+        glRotatef(80, 1, 0, 0)
         self.draw_cube(scale=(0.7, 1.8, 0.7), position=(0, -0.8, 0))
-
         glColor3f(0.2, 0.7, 0.3)
-        self.draw_cube(scale=(1.0, 0.4, 1.5), position=(0, -1.8, 0.5))
-
-        glColor3f(0.9, 0.9, 0.2)  # Yellow
-        self.draw_pyramid(scale=(0.2, 0.5, 0.2), position=(-0.3, -2.0, 1.2))
-        self.draw_pyramid(scale=(0.2, 0.5, 0.2), position=(0, -2.0, 1.2))
-        self.draw_pyramid(scale=(0.2, 0.5, 0.2), position=(0.3, -2.0, 1.2))
-
+        foot_z_offset = 0.5
+        glRotatef(-20, 1, 0, 0)
+        self.draw_cube(scale=(1.0, 0.4, 1.5),
+                       position=(0, -1.8, foot_z_offset))
+        glColor3f(0.9, 0.9, 0.2)
+        claw_y_pos = -1.8
+        claw_z_offset = 0.8 + foot_z_offset
+        self.draw_pyramid(scale=(0.2, 0.5, 0.2),
+                          position=(-0.3, claw_y_pos, claw_z_offset))
+        self.draw_pyramid(scale=(0.2, 0.5, 0.2), position=(
+            0, claw_y_pos, claw_z_offset))
+        self.draw_pyramid(scale=(0.2, 0.5, 0.2), position=(
+            0.3, claw_y_pos, claw_z_offset))
         glPopMatrix()
         glPopMatrix()
 
     def draw_tail(self, sway_angle=0.0):
-        """Draws a long, segmented tail with fluid animation."""
-        glColor3f(0.1, 0.6, 0.2)  # Dark Green
+        glColor3f(0.1, 0.6, 0.2)
         glPushMatrix()
-        glTranslatef(0, 1.5, -2.5)  # Start of tail
+        glTranslatef(0, 1.5, -2.5)
         glRotatef(sway_angle, 0, 1, 0)
-        glRotatef(15, 1, 0, 0)  # Angle tail down slightly
-
+        glRotatef(15, 1, 0, 0)
         current_time = time.time()
         for i in range(8):
             scale_factor = 1.0 - i * 0.08
-            self.draw_cube(scale=(1.5 * scale_factor, 1.5 * scale_factor, 1.5))
+            self.draw_cube(scale=(1.5*scale_factor, 1.5*scale_factor, 1.5))
             glTranslatef(0, -0.1, -1.4)
-            vertical_wave = math.sin(current_time * 3 + i * 0.8) * 4
-            glRotatef(vertical_wave, 1, 0, 0)
-            horizontal_wave = math.sin(current_time * 2 + i * 0.5) * 5
-            glRotatef(horizontal_wave, 0, 1, 0)
-
-        glColor3f(0.9, 0.9, 0.2)  # Yellow
+            glRotatef(math.sin(current_time * 3 + i * 0.8) * 4, 1, 0, 0)
+            glRotatef(math.sin(current_time * 2 + i * 0.5) * 5, 0, 1, 0)
+        glColor3f(0.9, 0.9, 0.2)
         self.draw_pyramid(scale=(0.5, 1.0, 0.5), position=(0, 0, 0))
         glPopMatrix()
 
     def draw_wing(self, side):
-        """
-        Draws a more detailed and anatomically plausible wing with an articulated
-        arm and proper membrane panels. This version is built horizontally (in the XZ plane)
-        to allow for correct up-and-down flapping.
-        Side: 1 for right, -1 for left.
-        """
         glPushMatrix()
-
-        # --- 1. Draw the Wing Bones (Arm) ---
-        glColor3f(0.1, 0.6, 0.2)  # Dark Green for bones
-
-        # Humerus (Upper Arm) - Connects to the body, extends along X axis
+        glColor3f(0.1, 0.6, 0.2)
         self.draw_cube(scale=(2.0, 0.4, 0.4), position=(side * 1.0, 0, 0))
-
-        # Move to the "elbow" joint
         glTranslatef(side * 2.0, 0, 0)
-        # Angle the forearm back in the horizontal plane (rotation around Y-axis)
         glRotatef(-side * 30, 0, 1, 0)
-
-        # Radius/Ulna (Forearm)
         self.draw_cube(scale=(2.5, 0.4, 0.4), position=(side * 1.25, 0, 0))
-
-        # --- 2. Draw the Spars (Fingers) and Membrane ---
-        # Move the drawing origin to the "wrist" joint
         glTranslatef(side * 2.5, 0, 0)
-
-        spar_definitions = [
-            {'angle': -20, 'length': 4.0},
-            {'angle': 15,  'length': 6.0},
-            {'angle': 50,  'length': 5.0},
-        ]
-
+        spar_definitions = [{'angle': -20, 'length': 4.0},
+                            {'angle': 15, 'length': 6.0}, {'angle': 50, 'length': 5.0}]
         spar_endpoints = []
         for spar in spar_definitions:
             angle_rad = math.radians(spar['angle'])
-            # Calculate endpoint in the horizontal XZ plane
-            end_point = (
-                side * spar['length'] * math.sin(angle_rad),
-                0,  # Y is 0 for a horizontal wing
-                -spar['length'] * math.cos(angle_rad)  # Adjusted Z
-            )
+            end_point = (side * spar['length'] * math.sin(angle_rad),
+                         0, -spar['length'] * math.cos(angle_rad))
             spar_endpoints.append(end_point)
-
-        # --- Draw the Membrane ---
-        glColor3f(0.8, 0.1, 0.1)  # Red membrane
+        glColor3f(0.8, 0.1, 0.1)
         glBegin(GL_TRIANGLES)
-        # The normal for a horizontal wing points up (or down), i.e., along the Y axis
         glNormal3f(0, side, 0)
-
         wrist_pos = (0, 0, 0)
-        elbow_pos = (-side * 2.5, 0, 0)  # Relative to the wrist
-
-        # Membrane Panel 1: Connects Forearm to the first spar
+        elbow_pos = (-side * 2.5, 0, 0)
         glVertex3fv(elbow_pos)
         glVertex3fv(wrist_pos)
         glVertex3fv(spar_endpoints[0])
-
-        # Membrane Panels between spars
         for i in range(len(spar_endpoints) - 1):
             glVertex3fv(wrist_pos)
             glVertex3fv(spar_endpoints[i])
             glVertex3fv(spar_endpoints[i+1])
         glEnd()
-
-        # --- Draw the Spars (bones) ---
-        glColor3f(0.1, 0.6, 0.2)  # Back to dark green
+        glColor3f(0.1, 0.6, 0.2)
         for i, spar in enumerate(spar_definitions):
             glPushMatrix()
-            # To spread the spars in the XZ plane, we rotate around the Y axis
             glRotatef(spar['angle'], 0, side, 0)
-            # The spar is a long, thin cube pointing "backwards" along the Z axis
-            self.draw_cube(scale=(0.2, 0.2, spar['length']),
-                           position=(0, 0, -spar['length'] / 2))  # Adjusted Z
+            self.draw_cube(scale=(0.2, 0.2, spar['length']), position=(
+                0, 0, -spar['length']/2))
             glPopMatrix()
+        glPopMatrix()
 
-        glPopMatrix()  # End of the wing transform
-
-    def draw(self, wing_angle=0, breathing_offset=0.0, tail_sway_angle=0.0):
-        """Draws the complete, detailed dragon."""
+    def draw(self, wing_angle=0, breathing_offset=0.0, tail_sway_angle=0.0, head_rot_x=0.0, head_rot_y=0.0, jaw_angle=0.0):
         glPushMatrix()
         glTranslatef(0, breathing_offset, 0)
-
         self.draw_torso()
         self.draw_neck()
-        self.draw_head(breathing_offset)
+        self.draw_head(breathing_offset, head_rot_x, head_rot_y, jaw_angle)
         self.draw_legs()
         self.draw_tail(tail_sway_angle)
-
-        # Right Wing
         glPushMatrix()
         glTranslatef(1.8, 2.5, 0.5)
-        # The wing is now built horizontally, so rotating around the Z-axis
-        # correctly produces an up-and-down flapping motion.
         glRotatef(wing_angle, 0, 0, 1)
         self.draw_wing(1)
         glPopMatrix()
-
-        # Left Wing
         glPushMatrix()
         glTranslatef(-1.8, 2.5, 0.5)
         glRotatef(-wing_angle, 0, 0, 1)
         self.draw_wing(-1)
         glPopMatrix()
-
         glPopMatrix()
 
 
 # --- Main Application Code ---
 dragon = Dragon()
 
-# --- Fire Particle Functions ---
+# --- Fire & Ember Functions ---
 
 
-def create_fire_particle():
-    particle = {
-        # Start closer to snout
-        'pos': [random.uniform(-0.1, 0.1), 3.0 + random.uniform(-0.1, 0.1), 5.5],
-        # More forward, slight upward
-        'vel': [random.uniform(-0.05, 0.05), random.uniform(0.05, 0.1), random.uniform(0.8, 1.2)],
-        'life': random.uniform(0.3, 0.8),  # Shorter life for dynamic feel
-        'max_life': 0,  # Will be set below
-        'size': random.uniform(0.1, 0.3),  # Smaller particles
-        'color': random.choice([(1, 0.2, 0), (1, 0.5, 0), (1, 1, 0)])
-    }
-    particle['max_life'] = particle['life']  # Store for alpha calculation
-    fire_particles.append(particle)
+def create_fireball():
+    global fireballs, head_rot_x, head_rot_y, breathing_offset
+    speed = 25.0
+    pitch_rad = math.radians(head_rot_x)
+    yaw_rad = math.radians(head_rot_y)
+    vel_x = speed * math.cos(pitch_rad) * math.sin(yaw_rad)
+    vel_y = -speed * math.sin(pitch_rad)
+    vel_z = speed * math.cos(pitch_rad) * math.cos(yaw_rad)
+    local_mouth_pos = [0, 0, 4.5]
+    y1 = local_mouth_pos[1]*math.cos(pitch_rad) - \
+        local_mouth_pos[2]*math.sin(pitch_rad)
+    z1 = local_mouth_pos[1]*math.sin(pitch_rad) + \
+        local_mouth_pos[2]*math.cos(pitch_rad)
+    pos_after_pitch = [local_mouth_pos[0], y1, z1]
+    x2 = pos_after_pitch[0]*math.cos(yaw_rad) + \
+        pos_after_pitch[2]*math.sin(yaw_rad)
+    z2 = -pos_after_pitch[0]*math.sin(yaw_rad) + \
+        pos_after_pitch[2]*math.cos(yaw_rad)
+    final_rotated_offset = [x2, pos_after_pitch[1], z2]
+    pivot_pos = [0, (1.5 + breathing_offset - 2.0), 3.0]
+    start_pos = [pivot_pos[i] + final_rotated_offset[i] for i in range(3)]
+    fireball = {'pos': start_pos, 'vel': [
+        vel_x, vel_y, vel_z], 'life': 2.5, 'max_life': 2.5, 'size': 1.0}
+    fireballs.append(fireball)
 
 
-def update_fire_particles():
-    global fire_particles
-    for p in fire_particles:
-        p['pos'][0] += p['vel'][0]
-        p['pos'][1] += p['vel'][1] * 0.5  # Less upward momentum than forward
-        p['pos'][2] += p['vel'][2]
-        p['life'] -= 0.02  # Faster decay
-        p['size'] *= 0.96  # Shrink faster
-    fire_particles = [p for p in fire_particles if p['life'] > 0]
+def update_fireballs_and_embers(delta_time):
+    """Updates fireballs and spawns embers from them."""
+    global fireballs, embers
+    gravity = 9.8
+    # Update fireballs
+    for p in fireballs:
+        for i in range(3):
+            p['pos'][i] += p['vel'][i] * delta_time
+        p['vel'][1] -= gravity * delta_time
+        p['life'] -= delta_time
+        # Spawn embers from active fireballs
+        if random.random() < 0.8:
+            vel_spread = 0.2
+            ember_vel = [
+                p['vel'][i]*0.1 + random.uniform(-vel_spread, vel_spread) for i in range(3)]
+            embers.append(
+                {'pos': p['pos'][:], 'vel': ember_vel, 'life': 0.8, 'max_life': 0.8})
+    fireballs = [p for p in fireballs if p['life'] > 0]
+    # Update embers
+    for p in embers:
+        for i in range(3):
+            p['pos'][i] += p['vel'][i] * delta_time
+        p['vel'][1] -= gravity * 0.5 * delta_time
+        p['life'] -= delta_time
+    embers = [p for p in embers if p['life'] > 0]
 
 
-def draw_fire():
-    glDisable(GL_LIGHTING)
-    # Don't write to depth buffer for transparent particles
-    glDepthMask(GL_FALSE)
-    glEnable(GL_BLEND)
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-    # glEnable(GL_ALPHA_TEST) # Sometimes used with blending, depends on effect
-    # glAlphaFunc(GL_GREATER, 0.1)
+def draw_billboard_particles(particles, modelview_matrix):
+    """Generic function to draw a list of particles as camera-facing quads."""
+    cam_right = [modelview_matrix[0][0],
+                 modelview_matrix[1][0], modelview_matrix[2][0]]
+    cam_up = [modelview_matrix[0][1],
+              modelview_matrix[1][1], modelview_matrix[2][1]]
 
     glBegin(GL_QUADS)
-    for p in fire_particles:
-        # Calculate alpha based on remaining life
-        alpha = p['life'] / p['max_life']
+    for p in particles:
+        life_ratio = p['life'] / p['max_life']
+        size = p.get('size', 0.1) * life_ratio
+        pos = p['pos']
+        color = p['color'] + (life_ratio,)
+        glColor4fv(color)
 
-        # Color fading from red/orange to yellow
-        color_fade = 1.0 - alpha  # 0 when full life, 1 when no life
-        r = p['color'][0]
-        g = p['color'][1] + (1 - p['color'][1]) * \
-            color_fade * 0.5  # Fade towards yellow
-        b = p['color'][2] - p['color'][2] * \
-            color_fade * 0.5  # Fade away from blue
+        p1 = [pos[i] - (cam_right[i] + cam_up[i]) * size for i in range(3)]
+        p2 = [pos[i] + (cam_right[i] - cam_up[i]) * size for i in range(3)]
+        p3 = [pos[i] + (cam_right[i] + cam_up[i]) * size for i in range(3)]
+        p4 = [pos[i] - (cam_right[i] - cam_up[i]) * size for i in range(3)]
 
-        glColor4f(r, g, b, alpha)  # Use glColor4f for alpha
-
-        x, y, z = p['pos']
-        s = p['size'] / 2
-        # Billboarding effect - make particles always face the camera (simple way)
-        # This draws squares that are aligned with the Z-axis, which is often sufficient for fire
-        glVertex3f(x - s, y - s, z)
-        glVertex3f(x + s, y - s, z)
-        glVertex3f(x + s, y + s, z)
-        glVertex3f(x - s, y + s, z)
+        glVertex3fv(p1)
+        glVertex3fv(p2)
+        glVertex3fv(p3)
+        glVertex3fv(p4)
     glEnd()
 
-    # glDisable(GL_ALPHA_TEST)
+
+def draw_fire_and_embers(modelview_matrix):
+    """Main drawing function for all fire effects."""
+    glDisable(GL_LIGHTING)
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE)
+    glDepthMask(GL_FALSE)
+
+    # Draw main fireball clouds
+    fire_particles = []
+    for p in fireballs:
+        life_ratio = p['life'] / p['max_life']
+        for _ in range(30):
+            offset = [random.uniform(-1, 1) * p['size']
+                      * life_ratio for _ in range(3)]
+            dist_from_center = math.sqrt(sum(x*x for x in offset))
+            g_channel = max(0, 1.0 - dist_from_center /
+                            (p['size'] * life_ratio))
+            particle_color = (1.0, 0.5 + g_channel*0.5, 0.0)
+            fire_particles.append({'pos': [p['pos'][i] + offset[i] for i in range(3)],
+                                   'life': p['life'], 'max_life': p['max_life'],
+                                   'size': 0.4, 'color': particle_color})
+    if fire_particles:
+        draw_billboard_particles(fire_particles, modelview_matrix)
+
+    # Draw embers
+    ember_particles = []
+    for p in embers:
+        ember_particles.append({'pos': p['pos'], 'life': p['life'], 'max_life': p['max_life'],
+                                'size': 0.1, 'color': (1.0, 0.4, 0.0)})
+    if ember_particles:
+        draw_billboard_particles(ember_particles, modelview_matrix)
+
+    glDepthMask(GL_TRUE)
     glDisable(GL_BLEND)
-    glDepthMask(GL_TRUE)  # Re-enable depth writing
     glEnable(GL_LIGHTING)
 
 # --- Drawing and Scene Functions ---
@@ -407,19 +426,17 @@ def display():
     glRotatef(camera_rot_x, 1, 0, 0)
     glRotatef(camera_rot_y, 0, 1, 0)
 
-    draw_ground()
+    modelview_matrix = glGetFloatv(GL_MODELVIEW_MATRIX)
 
+    draw_ground()
     glPushMatrix()
     glTranslatef(0, -2, 0)
-    dragon.draw(wing_angle, breathing_offset, tail_sway_angle)
-
-    if fire_particles:
-        glPushMatrix()
-        # Fire particles relative to the dragon's head
-        glTranslatef(0, 0, -1)  # adjust fire origin back slightly for effect
-        draw_fire()
-        glPopMatrix()
+    dragon.draw(wing_angle, breathing_offset, tail_sway_angle,
+                head_rot_x, head_rot_y, jaw_angle)
     glPopMatrix()
+
+    if fireballs or embers:
+        draw_fire_and_embers(modelview_matrix)
 
     glutSwapBuffers()
 
@@ -436,65 +453,71 @@ def reshape(w, h):
 
 
 def idle():
-    global wing_angle, last_time, breathing_offset, tail_sway_angle
-
+    global wing_angle, last_time, delta_time, breathing_offset, tail_sway_angle, jaw_angle
     current_time = time.time()
     if last_time == 0:
         last_time = current_time
+    delta_time = current_time - last_time
+    last_time = current_time
+    if delta_time == 0:
+        return
 
     wing_angle = math.sin(current_time * 5) * 40
     breathing_offset = math.sin(current_time * 2.0) * 0.1
     tail_sway_angle = math.sin(current_time * 1.0) * 8
 
-    if is_firing and len(fire_particles) < 100:
-        create_fire_particle()
-    update_fire_particles()
+    if jaw_angle > 0:
+        jaw_angle = max(0, jaw_angle - 50 * delta_time)
+
+    update_fireballs_and_embers(delta_time)
 
     glutPostRedisplay()
 
 
 def keyboard(key, x, y):
-    global is_firing, camera_zoom
+    global jaw_angle, camera_zoom
     key = key.decode("utf-8")
     if key == 'f':
-        is_firing = True
+        if jaw_angle < 5:
+            jaw_angle = 25
+            create_fireball()
     elif key == 'w':
         camera_zoom += 1
     elif key == 's':
         camera_zoom -= 1
 
 
-def keyboard_up(key, x, y):
-    global is_firing
-    if key.decode("utf-8") == 'f':
-        is_firing = False
+def keyboard_up(key, x, y): pass
 
 
 def mouse(button, state, x, y):
-    global mouse_dragging, last_mouse_pos
+    global mouse_dragging, right_mouse_dragging, last_mouse_pos
     if button == GLUT_LEFT_BUTTON:
-        if state == GLUT_DOWN:
-            mouse_dragging = True
-            last_mouse_pos['x'] = x
-            last_mouse_pos['y'] = y
-        elif state == GLUT_UP:
-            mouse_dragging = False
+        mouse_dragging = (state == GLUT_DOWN)
+        if mouse_dragging:
+            last_mouse_pos = {'x': x, 'y': y}
+    elif button == GLUT_RIGHT_BUTTON:
+        right_mouse_dragging = (state == GLUT_DOWN)
+        if right_mouse_dragging:
+            last_mouse_pos = {'x': x, 'y': y}
 
 
 def motion(x, y):
-    global camera_rot_x, camera_rot_y, last_mouse_pos
+    global camera_rot_x, camera_rot_y, head_rot_x, head_rot_y, last_mouse_pos
+    dx = x - last_mouse_pos['x']
+    dy = y - last_mouse_pos['y']
     if mouse_dragging:
-        dx = x - last_mouse_pos['x']
-        dy = y - last_mouse_pos['y']
         camera_rot_y += dx * 0.5
         camera_rot_x += dy * 0.5
-        if camera_rot_x > 90:
-            camera_rot_x = 90
-        if camera_rot_x < -90:
-            camera_rot_x = -90
-        last_mouse_pos['x'] = x
-        last_mouse_pos['y'] = y
-        glutPostRedisplay()
+        camera_rot_x = max(-90, min(90, camera_rot_x))
+    elif right_mouse_dragging:
+        head_rot_y += dx * 0.5
+        head_rot_x += dy * 0.5
+        head_rot_x = max(-45, min(30, head_rot_x))
+        head_rot_y = max(-60, min(60, head_rot_y))
+    last_mouse_pos['x'] = x
+    last_mouse_pos['y'] = y
+    glutPostRedisplay()
 
 
 def init():
@@ -510,18 +533,12 @@ def init():
     glLightfv(GL_LIGHT0, GL_AMBIENT, [0.8, 0.8, 0.8, 1.0])
     last_time = time.time()
 
-    # Enable point sprites for a potentially more advanced fire effect
-    # This might require some adjustments to the particle drawing logic
-    # glEnable(GL_POINT_SPRITE)
-    # glTexEnvi(GL_POINT_SPRITE, GL_COORD_REPLACE, GL_TRUE)
-    # glPointSize(10.0) # Example size, actual size depends on texture
-
 
 def main():
     glutInit(sys.argv)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
     glutInitWindowSize(1200, 800)
-    glutCreateWindow(b"Detailed and Animated 3D Dragon Viewer")
+    glutCreateWindow(b"Interactive Animated 3D Dragon")
     init()
     glutDisplayFunc(display)
     glutReshapeFunc(reshape)
@@ -530,7 +547,7 @@ def main():
     glutKeyboardUpFunc(keyboard_up)
     glutMouseFunc(mouse)
     glutMotionFunc(motion)
-    print("Controls:\n  - Left Click + Drag: Rotate\n  - 'f' (hold): Breathe Fire\n  - 'w'/'s': Zoom")
+    print("Controls:\n  - Left Click + Drag: Rotate Camera\n  - Right Click + Drag: Aim Head\n  - 'f': Shoot a Fireball\n  - 'w'/'s': Zoom Camera")
     glutMainLoop()
 
 
