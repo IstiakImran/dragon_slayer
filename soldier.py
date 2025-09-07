@@ -1,12 +1,3 @@
-# -----------------------------------------------------------------------------
-# 3D Warrior Prince Model using Python and PyOpenGL
-# Author: Gemini
-#
-# Description:
-# This script renders an animated 3D model of a warrior prince. The model can
-# run, jump, and use special abilities based on keyboard and mouse input. The
-# rendering is done using PyOpenGL and the GLUT library.
-#
 # Interaction:
 # - W, A, S, D keys: Trigger running animation.
 # - Spacebar: Trigger a jump.
@@ -129,13 +120,11 @@ def draw_arm(is_left=False, sword_func=None, shield_func=None, is_blasting=False
     glTranslatef(0, -0.9, 0)
     draw_cube(0.7, 0.5, 0.7)
 
-    # --- FIX: Apply corrective rotation for sword during blast animation ---
     if not is_left and sword_func:
         glPushMatrix()
         if is_blasting:
             # The sword function rotates the sword -75 degrees on X (downward).
-            # We apply a +75 degree rotation here to cancel that out,
-            # making the sword point straight forward from the arm.
+            # The arm is rotated -70 on X. This additional rotation corrects the sword.
             glRotatef(-180, 1, 0, 0)
         sword_func()
         glPopMatrix()
@@ -279,21 +268,17 @@ def draw_warrior():
     glPushMatrix()
     glTranslatef(-1.7, 1.0, 0)
 
-    # Check if the blast animation is active
     is_blasting_pose = blast_animation_timer > 0
 
     if is_blasting_pose:  # Firing blast pose
-        # Your rotation to bring the arm to the front
         glRotatef(-180, 0, 1, 0)
-        # Lift the arm up
         glRotatef(-70, 1, 0, 0)
     elif is_running:  # Running pose
         glRotatef(run_angle, 1, 0, 0)
-    else:  # New idle pose
+    else:  # Idle pose
         glRotatef(20, 1, 0, 0)
         glRotatef(15, 0, 0, 1)
 
-    # Pass the is_blasting_pose flag to the draw_arm function
     draw_arm(is_left=False, sword_func=draw_sword_func,
              is_blasting=is_blasting_pose)
     glPopMatrix()
@@ -307,7 +292,7 @@ def draw_warrior():
         glRotatef(-20, 0, 0, 1)
     elif is_running:  # Running pose
         glRotatef(-run_angle, 1, 0, 0)
-    else:  # New idle pose
+    else:  # Idle pose
         glRotatef(20, 1, 0, 0)
         glRotatef(-15, 0, 0, 1)
     draw_arm(is_left=True, shield_func=draw_shield_func)
@@ -393,27 +378,26 @@ def mouse(button, state, x, y):
     elif button == GLUT_RIGHT_BUTTON and state == GLUT_DOWN:
         blast_animation_timer = BLAST_ANIMATION_DURATION
 
-        # --- NEW FIX BASED ON YOUR EXAMPLE ---
-        # 1. Get the camera's angles (just like gun_angle in your code)
+        # --- START OF CORRECTED CODE ---
+        # 1. Get the camera's angles
         azimuth_rad = math.radians(camera_azimuth)
         elevation_rad = math.radians(camera_elevation)
 
-        # 2. Calculate the 3D direction vector using sin/cos
-        # This is the 3D equivalent of your 2D direction calculation
+        # 2. Calculate the 3D direction vector using trigonometry
         dir_x = -math.sin(azimuth_rad) * math.cos(elevation_rad)
         dir_y = math.sin(elevation_rad)
         dir_z = -math.cos(azimuth_rad) * math.cos(elevation_rad)
         
-        # 3. Define a clean starting position at the warrior's chest
-        start_pos = [0, 1.5 + warrior_y_pos, 0]
+        # 3. Define a clean starting position at the warrior's center/chest area.
+        start_pos = [0, warrior_y_pos + 1.0, 0]
 
-        # 4. Create the projectile with the calculated position and direction
+        # 4. Create the projectile with the correct start position and velocity direction
         projectiles.append({
             'pos': start_pos,
             'vel': [dir_x * PROJECTILE_SPEED, dir_y * PROJECTILE_SPEED, dir_z * PROJECTILE_SPEED],
             'life': PROJECTILE_LIFESPAN
         })
-        # --- END OF FIX ---
+        # --- END OF CORRECTED CODE ---
 
 
 def motion(x, y):
@@ -502,7 +486,6 @@ def idle():
     glutPostRedisplay()
 
 # --- Main Program Execution ---
-
 
 def main():
     """Initializes GLUT and enters the main loop."""
