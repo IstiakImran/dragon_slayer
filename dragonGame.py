@@ -188,7 +188,7 @@ class Warrior:
     def draw(self):
         glPushMatrix()
         glTranslatef(self.position[0], self.position[1] +
-                     self.yPos + 2.0, self.position[2])
+                       self.yPos + 2.0, self.position[2])
         glRotatef(self.rotationY, 0, 1, 0)
         glScalef(0.5, 0.5, 0.5)
 
@@ -233,8 +233,8 @@ class Warrior:
         else:
             glRotatef(20, 1, 0, 0)
             glRotatef(15, 0, 0, 1)
-        self.drawArm(is_left=False, sword_func=drawSwordFunc,
-                     is_blasting=isBlastingPose)
+        self.drawArm(isLeft=False, swordFunc=drawSwordFunc,
+                       isBlasting=isBlastingPose)
         glPopMatrix()
 
         # Left Arm (Shield Arm)
@@ -249,7 +249,7 @@ class Warrior:
         else:
             glRotatef(20, 1, 0, 0)
             glRotatef(-15, 0, 0, 1)
-        self.drawArm(is_left=True, shield_func=drawShieldFunc)
+        self.drawArm(isLeft=True, shieldFunc=drawShieldFunc)
         glPopMatrix()
 
         # Legs
@@ -317,7 +317,7 @@ class Warrior:
         glPopMatrix()
         glPopMatrix()
 
-    def drawArm(self, is_left=False, sword_func=None, shield_func=None, is_blasting=False):
+    def drawArm(self, isLeft=False, swordFunc=None, shieldFunc=None, isBlasting=False):
         glPushMatrix()
         glColor3f(0.7, 0.7, 0.8)
         drawWarriorCube(1.1, 1.1, 1.1)
@@ -328,16 +328,16 @@ class Warrior:
         glRotatef(15, 1, 0, 0)
         glColor3f(0.7, 0.7, 0.8)
         drawWarriorCube(0.8, 1.5, 0.8)
-        if is_left and shield_func:
-            shield_func()
+        if isLeft and shieldFunc:
+            shieldFunc()
         glColor3f(0.9, 0.7, 0.55)
         glTranslatef(0, -0.9, 0)
         drawWarriorCube(0.7, 0.5, 0.7)
-        if not is_left and sword_func:
+        if not isLeft and swordFunc:
             glPushMatrix()
-            if is_blasting:
+            if isBlasting:
                 glRotatef(75, 1, 0, 0)
-            sword_func()
+            swordFunc()
             glPopMatrix()
         glPopMatrix()
 
@@ -421,8 +421,17 @@ class Warrior:
 
 
 class Dragon:
-    def __init__(self, position=(0, 20, -30)):
-        # --- MODIFIED: Give each dragon a random starting position ---
+    def __init__(self, position=(0, 20, -30), colorScheme=None):
+        if colorScheme is None:
+            self.colorScheme = {
+                'primary': (0.1, 0.6, 0.2), 'secondary': (0.2, 0.7, 0.3),
+                'belly': (0.9, 0.9, 0.2), 'spine': (0.8, 0.1, 0.1),
+                'horn': (0.9, 0.9, 0.2), 'wing_membrane': (0.8, 0.1, 0.1),
+                'teeth': (1.0, 1.0, 0.9), 'eyes': (1.0, 0.0, 0.0)
+            }
+        else:
+            self.colorScheme = colorScheme
+
         self.position = [random.uniform(-WORLD_SIZE/2, WORLD_SIZE/2), 
                          random.uniform(20, 35), 
                          random.uniform(-WORLD_SIZE/2, WORLD_SIZE/2)]
@@ -443,8 +452,8 @@ class Dragon:
         self.moveTimer = 0
         self.isEvading = False
         self.evadeTimer = 0
-        self.circlingAngle = random.uniform(0, 2 * math.pi) # Random start angle
-        self.circlingDirection = random.choice([-1, 1]) # Random start direction
+        self.circlingAngle = random.uniform(0, 2 * math.pi)
+        self.circlingDirection = random.choice([-1, 1])
 
     def takeDamage(self, amount):
         if not self.isAlive: return
@@ -481,7 +490,7 @@ class Dragon:
             targetZ = playerPos[2] + radius * math.sin(self.circlingAngle)
             self.targetPosition = [targetX, 20, targetZ]
             if random.random() < 0.01:
-                self.circlingDirection *= -1 # Change direction occasionally
+                self.circlingDirection *= -1
 
         direction = [self.targetPosition[i] - self.position[i] for i in range(3)]
         dist = math.sqrt(sum(d*d for d in direction))
@@ -512,11 +521,8 @@ class Dragon:
 
     def evade(self, projectile):
         self.isEvading = True
-        self.evadeTimer = time.time() + 2.0 # Evade for 2 seconds
-
-        # Simple evasion: move up and to the side
-        self.targetPosition[1] += 10 # Fly up
-        # Move perpendicular to projectile path
+        self.evadeTimer = time.time() + 2.0
+        self.targetPosition[1] += 10
         projVel = projectile['vel']
         sideVec = [-projVel[2], 0, projVel[0]]
         mag = math.sqrt(sideVec[0]**2 + sideVec[2]**2)
@@ -529,7 +535,7 @@ class Dragon:
         global dragonFireballs
         if not self.isAlive: return
         self.jawAngle = 25
-        speed = 25.0
+        speed = 15
         finalYawRad = math.radians(self.bodyRotY + self.headRotY)
         finalPitchRad = math.radians(self.headRotX)
         velX = speed * math.cos(finalPitchRad) * math.sin(finalYawRad)
@@ -541,7 +547,6 @@ class Dragon:
         startPos[0] += neckOffset[2] * math.sin(bodyRotRad)
         startPos[2] += neckOffset[2] * math.cos(bodyRotRad)
         startPos[1] += neckOffset[1]
-        # --- MODIFIED LINE ---
         dragonFireballs.append({'pos': startPos, 'vel': [velX, velY, velZ], 'life': 5.0, 'max_life': 5.0, 'size': 1.0, 'state': 'flying'})
 
     def respawn(self):
@@ -554,7 +559,7 @@ class Dragon:
         if not self.isAlive: return
         glPushMatrix()
         glTranslatef(self.position[0], self.position[1], self.position[2])
-        glRotatef(-self.bodyRotY, 0, 1, 0)  # Rotate body
+        glRotatef(-self.bodyRotY, 0, 1, 0)
         glPushMatrix()
         glTranslatef(0, self.breathingOffset, 0)
         self.drawTorso()
@@ -592,12 +597,9 @@ class Dragon:
         glScalef(*scale)
         glBegin(GL_TRIANGLES)
         for face in indices:
-            v1 = [vertices[face[1]][i] - vertices[face[0]][i]
-                  for i in range(3)]
-            v2 = [vertices[face[2]][i] - vertices[face[0]][i]
-                  for i in range(3)]
-            normal = [v1[1]*v2[2] - v1[2]*v2[1], v1[2] *
-                      v2[0] - v1[0]*v2[2], v1[0]*v2[1] - v1[1]*v2[0]]
+            v1 = [vertices[face[1]][i] - vertices[face[0]][i] for i in range(3)]
+            v2 = [vertices[face[2]][i] - vertices[face[0]][i] for i in range(3)]
+            normal = [v1[1]*v2[2] - v1[2]*v2[1], v1[2] * v2[0] - v1[0]*v2[2], v1[0]*v2[1] - v1[1]*v2[0]]
             glNormal3fv(normal)
             for vertex in face:
                 glVertex3fv(vertices[vertex])
@@ -611,21 +613,19 @@ class Dragon:
         glPopMatrix()
 
     def drawSpine(self):
-        glColor3f(0.8, 0.1, 0.1)
+        glColor3f(*self.colorScheme['spine'])
         for i in range(5):
             sizeMultiplier = 1.0 - abs(i - 2) * 0.3
-            self.drawPyramid(scale=(0.8 * sizeMultiplier, 1.5 *
-                             sizeMultiplier, 0.3), position=(0, 3.5, 2.0 - i * 1.2))
+            self.drawPyramid(scale=(0.8 * sizeMultiplier, 1.5 * sizeMultiplier, 0.3), position=(0, 3.5, 2.0 - i * 1.2))
 
     def drawTorso(self):
-        glColor3f(0.1, 0.6, 0.2)
+        glColor3f(*self.colorScheme['primary'])
         self.drawCube(scale=(3.5, 3, 5.5), position=(0, 1.5, 0))
-        glColor3f(0.2, 0.7, 0.3)
+        glColor3f(*self.colorScheme['secondary'])
         self.drawCube(scale=(4, 3.5, 2), position=(0, 1.5, 1.5))
-        glColor3f(0.9, 0.9, 0.2)
+        glColor3f(*self.colorScheme['belly'])
         for i in range(5):
-            self.drawCube(scale=(2.5, 0.4, 0.8),
-                          position=(0, -0.2, 2.0 - i * 1.0))
+            self.drawCube(scale=(2.5, 0.4, 0.8), position=(0, -0.2, 2.0 - i * 1.0))
         self.drawSpine()
 
     def drawHead(self, breathingOffset=0.0, headRotX=0.0, headRotY=0.0, jawAngle=0.0):
@@ -634,10 +634,10 @@ class Dragon:
         glRotatef(breathingOffset * -20, 1, 0, 0)
         glRotatef(headRotY, 0, 1, 0)
         glRotatef(headRotX, 1, 0, 0)
-        glColor3f(0.1, 0.6, 0.2)
+        glColor3f(*self.colorScheme['primary'])
         self.drawCube(scale=(2, 1.8, 2.5), position=(0, 0, 0))
         self.drawCube(scale=(1.5, 1.2, 2.5), position=(0, -0.2, 2.0))
-        glColor3f(1.0, 1.0, 0.9)
+        glColor3f(*self.colorScheme['teeth'])
         for i in range(5):
             glPushMatrix()
             glTranslatef(-0.6 + i*0.3, -0.55, 3.0)
@@ -648,19 +648,17 @@ class Dragon:
         glTranslatef(0, -0.7, 0.85)
         glRotatef(jawAngle, 1, 0, 0)
         glTranslatef(0, -0.2, 1.15)
-        glColor3f(0.2, 0.7, 0.3)
+        glColor3f(*self.colorScheme['secondary'])
         self.drawCube(scale=(1.4, 0.5, 2.3))
-        glColor3f(1.0, 1.0, 0.9)
+        glColor3f(*self.colorScheme['teeth'])
         for i in range(4):
-            self.drawPyramid(scale=(0.2, 0.7, 0.2),
-                             position=(-0.5, 0.25, -0.8 + i*0.5))
-            self.drawPyramid(scale=(0.2, 0.7, 0.2),
-                             position=(0.5, 0.25, -0.8 + i*0.5))
+            self.drawPyramid(scale=(0.2, 0.7, 0.2), position=(-0.5, 0.25, -0.8 + i*0.5))
+            self.drawPyramid(scale=(0.2, 0.7, 0.2), position=(0.5, 0.25, -0.8 + i*0.5))
         glPopMatrix()
-        glColor3f(1.0, 0.0, 0.0)
+        glColor3f(*self.colorScheme['eyes'])
         self.drawSphere(radius=0.2, position=(-0.6, 0.5, 1.5))
         self.drawSphere(radius=0.2, position=(0.6, 0.5, 1.5))
-        glColor3f(0.9, 0.9, 0.2)
+        glColor3f(*self.colorScheme['horn'])
         self.drawPyramid(scale=(0.4, 2.0, 0.4), position=(-0.8, 0.8, -0.5))
         self.drawPyramid(scale=(0.4, 2.0, 0.4), position=(0.8, 0.8, -0.5))
         self.drawPyramid(scale=(0.3, 1.5, 0.3), position=(-0.5, 0.8, -1.2))
@@ -668,7 +666,7 @@ class Dragon:
         glPopMatrix()
 
     def drawNeck(self):
-        glColor3f(0.1, 0.6, 0.2)
+        glColor3f(*self.colorScheme['primary'])
         glPushMatrix()
         glTranslatef(0, 2.5, 2.5)
         self.drawCube(scale=(2, 2, 1))
@@ -680,40 +678,36 @@ class Dragon:
     def drawLegs(self):
         self.drawLeg(position=(-2.2, 0, 1.5))
         self.drawLeg(position=(2.2, 0, 1.5))
-        self.drawLeg(position=(-1.8, 0, -2.0), is_rear=True)
-        self.drawLeg(position=(1.8, 0, -2.0), is_rear=True)
+        self.drawLeg(position=(-1.8, 0, -2.0), isRear=True)
+        self.drawLeg(position=(1.8, 0, -2.0), isRear=True)
 
-    def drawLeg(self, position, is_rear=False):
+    def drawLeg(self, position, isRear=False):
         glPushMatrix()
         glTranslatef(*position)
-        initialLegAngle = 45 if is_rear else 55
+        initialLegAngle = 45 if isRear else 55
         glRotatef(initialLegAngle, 1, 0, 0)
-        glColor3f(0.1, 0.6, 0.2)
+        glColor3f(*self.colorScheme['primary'])
         glPushMatrix()
         glRotatef(-40, 1, 0, 0)
         self.drawCube(scale=(0.8, 2.0, 1.0), position=(0, -1.0, 0))
         glTranslatef(0, -2.0, 0)
         glRotatef(80, 1, 0, 0)
         self.drawCube(scale=(0.7, 1.8, 0.7), position=(0, -0.8, 0))
-        glColor3f(0.2, 0.7, 0.3)
+        glColor3f(*self.colorScheme['secondary'])
         footZOffset = 0.5
         glRotatef(-20, 1, 0, 0)
-        self.drawCube(scale=(1.0, 0.4, 1.5),
-                      position=(0, -1.8, footZOffset))
-        glColor3f(0.9, 0.9, 0.2)
+        self.drawCube(scale=(1.0, 0.4, 1.5), position=(0, -1.8, footZOffset))
+        glColor3f(*self.colorScheme['horn'])
         clawYPos = -1.8
         clawZOffset = 0.8 + footZOffset
-        self.drawPyramid(scale=(0.2, 0.5, 0.2),
-                         position=(-0.3, clawYPos, clawZOffset))
-        self.drawPyramid(scale=(0.2, 0.5, 0.2), position=(
-            0, clawYPos, clawZOffset))
-        self.drawPyramid(scale=(0.2, 0.5, 0.2), position=(
-            0.3, clawYPos, clawZOffset))
+        self.drawPyramid(scale=(0.2, 0.5, 0.2), position=(-0.3, clawYPos, clawZOffset))
+        self.drawPyramid(scale=(0.2, 0.5, 0.2), position=(0, clawYPos, clawZOffset))
+        self.drawPyramid(scale=(0.2, 0.5, 0.2), position=(0.3, clawYPos, clawZOffset))
         glPopMatrix()
         glPopMatrix()
 
     def drawTail(self, swayAngle=0.0):
-        glColor3f(0.1, 0.6, 0.2)
+        glColor3f(*self.colorScheme['primary'])
         glPushMatrix()
         glTranslatef(0, 1.5, -2.5)
         glRotatef(swayAngle, 0, 1, 0)
@@ -725,27 +719,26 @@ class Dragon:
             glTranslatef(0, -0.1, -1.4)
             glRotatef(math.sin(currentTime * 3 + i * 0.8) * 4, 1, 0, 0)
             glRotatef(math.sin(currentTime * 2 + i * 0.5) * 5, 0, 1, 0)
-        glColor3f(0.9, 0.9, 0.2)
+        glColor3f(*self.colorScheme['horn'])
         self.drawPyramid(scale=(0.5, 1.0, 0.5), position=(0, 0, 0))
         glPopMatrix()
 
     def drawWing(self, side):
         glPushMatrix()
-        glColor3f(0.1, 0.6, 0.2)
+        glColor3f(*self.colorScheme['primary'])
         self.drawCube(scale=(2.0, 0.4, 0.4), position=(side * 1.0, 0, 0))
         glTranslatef(side * 2.0, 0, 0)
         glRotatef(-side * 30, 0, 1, 0)
         self.drawCube(scale=(2.5, 0.4, 0.4), position=(side * 1.25, 0, 0))
         glTranslatef(side * 2.5, 0, 0)
         sparDefinitions = [{'angle': -20, 'length': 4.0},
-                           {'angle': 15, 'length': 6.0}, {'angle': 50, 'length': 5.0}]
+                            {'angle': 15, 'length': 6.0}, {'angle': 50, 'length': 5.0}]
         sparEndpoints = []
         for spar in sparDefinitions:
             angleRad = math.radians(spar['angle'])
-            endPoint = (side * spar['length'] * math.sin(angleRad),
-                        0, -spar['length'] * math.cos(angleRad))
+            endPoint = (side * spar['length'] * math.sin(angleRad), 0, -spar['length'] * math.cos(angleRad))
             sparEndpoints.append(endPoint)
-        glColor3f(0.8, 0.1, 0.1)
+        glColor3f(*self.colorScheme['wing_membrane'])
         glBegin(GL_TRIANGLES)
         glNormal3f(0, side, 0)
         wristPos = (0, 0, 0)
@@ -758,12 +751,11 @@ class Dragon:
             glVertex3fv(sparEndpoints[i])
             glVertex3fv(sparEndpoints[i+1])
         glEnd()
-        glColor3f(0.1, 0.6, 0.2)
+        glColor3f(*self.colorScheme['primary'])
         for i, spar in enumerate(sparDefinitions):
             glPushMatrix()
             glRotatef(spar['angle'], 0, side, 0)
-            self.drawCube(scale=(0.2, 0.2, spar['length']), position=(
-                0, 0, -spar['length']/2))
+            self.drawCube(scale=(0.2, 0.2, spar['length']), position=(0, 0, -spar['length']/2))
             glPopMatrix()
         glPopMatrix()
 
@@ -776,7 +768,7 @@ class Camera:
     def __init__(self, position=(0, 5, 10)):
         self.position = list(position)
         self.rotation = [0, 0]
-        self.speed = 0.2
+        self.speed = 0.19
         self.sensitivity = 0.15
         self.playerRadius = 0.5
         self.isThirdPerson = True
@@ -827,11 +819,11 @@ class Camera:
             warrior.rotationY = - \
                 math.degrees(math.atan2(-moveVec[2], -moveVec[0])) + 90
         nextPosX = [warrior.position[0] + moveVec[0],
-                    warrior.position[1], warrior.position[2]]
+                      warrior.position[1], warrior.position[2]]
         if not self.isColliding(nextPosX):
             warrior.position[0] += moveVec[0]
         nextPosZ = [warrior.position[0], warrior.position[1],
-                    warrior.position[2] + moveVec[2]]
+                      warrior.position[2] + moveVec[2]]
         if not self.isColliding(nextPosZ):
             warrior.position[2] += moveVec[2]
         if warrior.position[1] < 1.0:
@@ -846,7 +838,7 @@ class Camera:
         dx, dy = x - lastMousePos['x'], y - lastMousePos['y']
         self.rotation[0] += dx * self.sensitivity
         self.rotation[1] = max(-89.0, min(89.0,
-                                           self.rotation[1] - dy * self.sensitivity))
+                                         self.rotation[1] - dy * self.sensitivity))
         centerX, centerY = WINDOW_WIDTH // 2, WINDOW_HEIGHT // 2
         if abs(x - centerX) > 200 or abs(y - centerY) > 200:
             isMouseWarping = True
@@ -880,7 +872,7 @@ class Camera:
             pitchRad, yawRad = math.radians(
                 self.rotation[1]), math.radians(self.rotation[0])
             camPos = [warrior.position[0],
-                      warrior.position[1] + 4.0, warrior.position[2]]
+                       warrior.position[1] + 4.0, warrior.position[2]]
             self.position = camPos
             lookAtPoint = [camPos[0] + math.sin(yawRad) * math.cos(pitchRad), camPos[1] + math.sin(
                 pitchRad), camPos[2] - math.cos(yawRad) * math.cos(pitchRad)]
@@ -918,54 +910,40 @@ def drawShrubGeometry(): glPushMatrix(); leafColors = [(0.1, 0.4, 0.1), (0.1, 0.
     1.5, leafColors); glTranslatef(-1.5, 0, 0); drawCube(1.5, leafColors); glTranslatef(0.75, 0.5, 0.75); drawCube(1.5, leafColors); glTranslatef(0, 0, -1.5); drawCube(1.5, leafColors); glPopMatrix()
 
 
-# --- REPLACED HEART GEOMETRY ---
 def drawHeartGeometry():
-    """Draws a better, blocky 3D heart shape that fits the game's art style."""
     glPushMatrix()
-    glColor3f(1.0, 0.0, 0.0) # Bright red
-
-    # Base size for the blocks
+    glColor3f(1.0, 0.0, 0.0)
     s = 0.5
-
-    # Central column (3 blocks high)
     glPushMatrix()
     glTranslatef(0, s, 0)
     glScalef(s, s * 3, s)
     glutSolidCube(1.0)
     glPopMatrix()
-
-    # Side columns (2 blocks high)
     glPushMatrix()
     glTranslatef(-s, s * 1.5, 0)
     glScalef(s, s * 2, s)
     glutSolidCube(1.0)
     glPopMatrix()
-
     glPushMatrix()
     glTranslatef(s, s * 1.5, 0)
     glScalef(s, s * 2, s)
     glutSolidCube(1.0)
     glPopMatrix()
-
-    # Topmost outer blocks (1 block high)
     glPushMatrix()
     glTranslatef(-s * 2, s * 2, 0)
     glScalef(s, s, s)
     glutSolidCube(1.0)
     glPopMatrix()
-
     glPushMatrix()
     glTranslatef(s * 2, s * 2, 0)
     glScalef(s, s, s)
     glutSolidCube(1.0)
     glPopMatrix()
-    
     glPopMatrix()
-# -------------------------
 
 
 def drawGround(): glColor3f(0.1, 0.6, 0.1); glBegin(GL_QUADS); glVertex3f(-WORLD_SIZE, 0, -WORLD_SIZE); glVertex3f(-WORLD_SIZE,
-                                                                                                                   0, WORLD_SIZE); glVertex3f(WORLD_SIZE, 0, WORLD_SIZE); glVertex3f(WORLD_SIZE, 0, -WORLD_SIZE); glEnd()
+                                                                                                                     0, WORLD_SIZE); glVertex3f(WORLD_SIZE, 0, WORLD_SIZE); glVertex3f(WORLD_SIZE, 0, -WORLD_SIZE); glEnd()
 
 
 def drawPlayerProjectiles():
@@ -979,9 +957,9 @@ def drawPlayerProjectiles():
 
 def drawBillboardParticles(particles, modelviewMatrix):
     camRight = [modelviewMatrix[0][0],
-                modelviewMatrix[1][0], modelviewMatrix[2][0]]
+                 modelviewMatrix[1][0], modelviewMatrix[2][0]]
     camUp = [modelviewMatrix[0][1],
-             modelviewMatrix[1][1], modelviewMatrix[2][1]]
+              modelviewMatrix[1][1], modelviewMatrix[2][1]]
     glBegin(GL_QUADS)
     for p in particles:
         lifeRatio = p['life'] / p['max_life']
@@ -1006,28 +984,23 @@ def drawFireAndEmbers(modelviewMatrix):
     glDepthMask(GL_FALSE)
     fireParticles = []
     
-    # --- MODIFIED: Filter for only flying fireballs ---
     flyingFireballs = [p for p in dragonFireballs if p.get('state', 'flying') == 'flying']
 
-    for p in flyingFireballs: # Use the filtered list now
+    for p in flyingFireballs: 
         lifeRatio = p['life'] / p['max_life']
         for _ in range(30):
-            offset = [random.uniform(-1, 1) * p['size']
-                      * lifeRatio for _ in range(3)]
+            offset = [random.uniform(-1, 1) * p['size'] * lifeRatio for _ in range(3)]
             distFromCenter = math.sqrt(sum(x*x for x in offset))
-            gChannel = max(0, 1.0 - distFromCenter /
-                           (p['size'] * lifeRatio))
+            gChannel = max(0, 1.0 - distFromCenter / (p['size'] * lifeRatio))
             particleColor = (1.0, 0.5 + gChannel*0.5, 0.0)
-            fireParticles.append({'pos': [p['pos'][i] + offset[i] for i in range(
-                3)], 'life': p['life'], 'max_life': p['max_life'], 'size': 0.4, 'color': particleColor})
+            fireParticles.append({'pos': [p['pos'][i] + offset[i] for i in range(3)], 'life': p['life'], 'max_life': p['max_life'], 'size': 0.4, 'color': particleColor})
     
     if fireParticles:
         drawBillboardParticles(fireParticles, modelviewMatrix)
     
     emberParticles = []
     for p in embers:
-        emberParticles.append(
-            {'pos': p['pos'], 'life': p['life'], 'max_life': p['max_life'], 'size': 0.1, 'color': (1.0, 0.4, 0.0)})
+        emberParticles.append({'pos': p['pos'], 'life': p['life'], 'max_life': p['max_life'], 'size': 0.1, 'color': (1.0, 0.4, 0.0)})
     
     if emberParticles:
         drawBillboardParticles(emberParticles, modelviewMatrix)
@@ -1049,33 +1022,27 @@ def drawUi():
     glColor3f(1, 0, 0)
     glRectf(10, WINDOW_HEIGHT - 30, 10 + 200, WINDOW_HEIGHT - 10)
     glColor3f(0, 1, 0)
-    glRectf(10, WINDOW_HEIGHT - 30, 10 + 200 *
-            (warrior.health/PLAYER_MAX_HEALTH), WINDOW_HEIGHT - 10)
+    glRectf(10, WINDOW_HEIGHT - 30, 10 + 200 * (warrior.health/PLAYER_MAX_HEALTH), WINDOW_HEIGHT - 10)
             
-    # --- MODIFIED FOR MULTIPLE DRAGON HEALTH BARS ---
-    y_offset = 0
+    yOffset = 0
     for dragon in dragons:
         if dragon.isAlive:
-            top_y = WINDOW_HEIGHT - 10 - y_offset
-            bottom_y = WINDOW_HEIGHT - 30 - y_offset
+            topY = WINDOW_HEIGHT - 10 - yOffset
+            bottomY = WINDOW_HEIGHT - 30 - yOffset
             
-            # Background
             glColor3f(1, 0, 0)
-            glRectf(WINDOW_WIDTH - 210, bottom_y, WINDOW_WIDTH - 10, top_y)
+            glRectf(WINDOW_WIDTH - 210, bottomY, WINDOW_WIDTH - 10, topY)
             
-            # Health
-            glColor3f(0.8, 0, 0.8)
-            health_width = 200 * (dragon.health / DRAGON_MAX_HEALTH)
-            glRectf(WINDOW_WIDTH - 210, bottom_y, WINDOW_WIDTH - 210 + health_width, top_y)
+            glColor3f(*dragon.colorScheme['primary'])
+            healthWidth = 200 * (dragon.health / DRAGON_MAX_HEALTH)
+            glRectf(WINDOW_WIDTH - 210, bottomY, WINDOW_WIDTH - 210 + healthWidth, topY)
             
-            y_offset += 25 # Gap for the next bar
-    # ---------------------------------------------
+            yOffset += 25
     
     if gameOver:
         glColor3f(1, 0, 0)
         drawText("GAME OVER", WINDOW_WIDTH/2 - 50, WINDOW_HEIGHT/2)
-        drawText("Press 'R' to restart", WINDOW_WIDTH /
-                 2 - 70, WINDOW_HEIGHT/2 - 30)
+        drawText("Press 'R' to restart", WINDOW_WIDTH / 2 - 70, WINDOW_HEIGHT/2 - 30)
     if not camera.isThirdPerson:
         drawCrosshair()
     glEnable(GL_DEPTH_TEST)
@@ -1108,7 +1075,7 @@ def drawCrosshair():
 
 def isPositionSafe(pos, radius):
     collidableTypes = {'boundary_walls': WALL_BLOCK_SIZE, 'random_walls': WALL_BLOCK_SIZE,
-                       'trees': TREE_COLLISION_SIZE, 'shrubs': SHRUB_COLLISION_SIZE}
+                        'trees': TREE_COLLISION_SIZE, 'shrubs': SHRUB_COLLISION_SIZE}
     for objKey, objSize in collidableTypes.items():
         for objPos in objectPositions.get(objKey, []):
             if (pos[0] - objPos[0])**2 + (pos[2] - objPos[2])**2 < (radius + objSize / 2)**2:
@@ -1124,13 +1091,12 @@ def findSafeSpawnPoint():
         if isPositionSafe(pos, 2.0):
             return pos
 
-# --- ADDED FOR HEARTS ---
+
 def spawnHeart():
-    """Finds a safe location and spawns a new heart there."""
     pos = findSafeSpawnPoint()
-    pos[1] = 2.0 # Set height for the heart to float
+    pos[1] = 2.0
     hearts.append({'position': pos})
-# -------------------------
+
 
 def spawnBomb():
     bombs.append({'position': [random.uniform(-WORLD_SIZE, WORLD_SIZE), 0.5, random.uniform(-WORLD_SIZE, WORLD_SIZE)], 'state': 'idle', 'triggered_time': 0, 'explosion_start_time': 0})
@@ -1152,8 +1118,7 @@ def updateGameLogic():
 
     currentTime = time.time()
     
-    # --- ADDED FOR HEARTS ---
-    for heart in hearts[:]: # Iterate over a copy
+    for heart in hearts[:]:
         distSq = (heart['position'][0] - warrior.position[0])**2 + \
                  (heart['position'][1] - (warrior.position[1] + warrior.yPos))**2 + \
                  (heart['position'][2] - warrior.position[2])**2
@@ -1161,8 +1126,7 @@ def updateGameLogic():
         if distSq < HEART_TRIGGER_RADIUS**2:
             warrior.heal(HEART_HEAL_AMOUNT)
             hearts.remove(heart)
-            spawnHeart() # Spawn a new one to replace it
-    # -------------------------
+            spawnHeart()
             
     for bomb in bombs[:]:
         if bomb.get('state') == 'idle':
@@ -1174,7 +1138,7 @@ def updateGameLogic():
             if currentTime > bomb['triggered_time']+BOMB_FUSE_TIME:
                 bomb['state'] = 'exploding'
                 bomb['explosion_start_time'] = currentTime
-                bomb['damage_dealt'] = False  # Add a flag to ensure damage is dealt only once
+                bomb['damage_dealt'] = False
                 print("Boom!")
         elif bomb.get('state') == 'exploding':
             progress = (currentTime - bomb['explosion_start_time']) / BOMB_EXPLOSION_DURATION
@@ -1196,8 +1160,6 @@ def updateGameLogic():
         if random.random() < WALL_SPAWN_CHANCE:
             spawnBlockingWall()
 
-    # --- MODIFIED FOR MULTIPLE DRAGONS ---
-    # Update player projectiles
     updatedProjectiles = []
     for proj in playerProjectiles:
         proj['pos'][0] += proj['vel'][0]
@@ -1205,25 +1167,23 @@ def updateGameLogic():
         proj['pos'][2] += proj['vel'][2]
         proj['life'] -= 1
 
-        hit_a_dragon = False
+        hitADragon = False
         if proj['life'] > 0:
             for dragon in dragons:
                 if dragon.isAlive:
                     distSq = (proj['pos'][0] - dragon.position[0])**2 + \
                              (proj['pos'][1] - dragon.position[1])**2 + \
                              (proj['pos'][2] - dragon.position[2])**2
-                    if distSq < 10:  # Hit radius
+                    if distSq < 10:
                         dragon.takeDamage(10)
-                        hit_a_dragon = True
-                        break  # Projectile is consumed, stop checking other dragons
+                        hitADragon = True
+                        break
         
-        if not hit_a_dragon and proj['life'] > 0:
+        if not hitADragon and proj['life'] > 0:
             updatedProjectiles.append(proj)
             
     playerProjectiles = updatedProjectiles
-    # ------------------------------------
 
-    # Update dragon fireballs
     gravity = 9.8 * 0.016
     updatedFireballs = []
     warriorPosWithJump = [warrior.position[0], warrior.position[1] + warrior.yPos, warrior.position[2]]
@@ -1231,7 +1191,6 @@ def updateGameLogic():
     for p in dragonFireballs:
         isExplodingThisFrame = False
 
-        # --- Handle flying fireballs ---
         if p.get('state', 'flying') == 'flying':
             for i in range(3): p['pos'][i] += p['vel'][i] * 0.016
             p['vel'][1] -= gravity
@@ -1257,7 +1216,6 @@ def updateGameLogic():
                 p['explosion_pos'] = list(p['pos'])
                 if p['pos'][1] <= 0.1: p['explosion_pos'][1] = 0.1
         
-        # --- Handle exploding fireballs (Area of Effect Damage) ---
         if p.get('state') == 'exploding':
             progress = (currentTime - p['explosion_start_time']) / FIREBALL_EXPLOSION_DURATION
             
@@ -1270,13 +1228,11 @@ def updateGameLogic():
                         p['damage_dealt'] = True
                 updatedFireballs.append(p)
         
-        # --- Keep non-exploding fireballs ---
         elif p.get('state', 'flying') == 'flying':
             updatedFireballs.append(p)
 
     dragonFireballs = updatedFireballs
 
-    # Update embers separately
     for p in embers:
         for i in range(3): p['pos'][i] += p['vel'][i] * 0.016
         p['vel'][1] -= gravity * 0.5
@@ -1320,21 +1276,26 @@ def restartGame():
     safeSpawnPos = findSafeSpawnPoint()
     warrior = Warrior(position=safeSpawnPos)
     
-    # --- MODIFIED FOR MULTIPLE DRAGONS ---
     dragons = []
-    for _ in range(NUM_DRAGONS):
-        dragons.append(Dragon())
-    # ------------------------------------
+    blueDragonColor = {
+        'primary': (0.1, 0.2, 0.6), 'secondary': (0.2, 0.3, 0.7),
+        'belly': (0.8, 0.8, 0.9), 'spine': (0.9, 0.5, 0.1),
+        'horn': (0.8, 0.8, 0.9), 'wing_membrane': (0.9, 0.5, 0.1),
+        'teeth': (1.0, 1.0, 0.9), 'eyes': (1.0, 0.5, 0.0)
+    }
+    colorSchemes = [None, blueDragonColor]
+
+    for i in range(NUM_DRAGONS):
+        scheme = colorSchemes[i % len(colorSchemes)]
+        dragons.append(Dragon(colorScheme=scheme))
 
     playerProjectiles = []
     dragonFireballs = []
     embers = []
     bombs = []
-    # --- ADDED FOR HEARTS ---
     hearts = []
     for _ in range(NUM_HEARTS):
         spawnHeart()
-    # -------------------------
     gameState = {'lastWallCheck': time.time()}
     for _ in range(NUM_BOMBS):
         spawnBomb()
@@ -1357,7 +1318,7 @@ def display():
     cullingDistSq = CULLING_DISTANCE**2
     camPos = warrior.position
     objectMap = [('trees', LIST_IDS['tree']), ('rocks', LIST_IDS['rock']), ('shrubs',
-                                                                            LIST_IDS['shrub']), ('random_walls', LIST_IDS['wall']), ('boundary_walls', LIST_IDS['wall'])]
+                                                                             LIST_IDS['shrub']), ('random_walls', LIST_IDS['wall']), ('boundary_walls', LIST_IDS['wall'])]
     for key, listId in objectMap:
         for pos in objectPositions[key]:
             if (pos[0]-camPos[0])**2+(pos[2]-camPos[2])**2 < cullingDistSq:
@@ -1392,18 +1353,15 @@ def display():
             glDisable(GL_BLEND)
             glPopMatrix()
 
-    # --- ADDED FOR HEARTS ---
     for heart in hearts:
         glPushMatrix()
-        # Bobbing and rotating animation
-        bobbing_offset = math.sin(time.time() * 2.0 + heart['position'][0]) * 0.25
+        bobbingOffset = math.sin(time.time() * 2.0 + heart['position'][0]) * 0.25
         pos = heart['position']
-        glTranslatef(pos[0], pos[1] + bobbing_offset, pos[2])
-        glRotatef(time.time() * 30, 0, 1, 0) # Slow rotation on Y axis
-        glScalef(1.5, 1.5, 1.5) # Scale it up to be more visible
+        glTranslatef(pos[0], pos[1] + bobbingOffset, pos[2])
+        glRotatef(time.time() * 30, 0, 1, 0)
+        glScalef(1.5, 1.5, 1.5)
         drawHeartGeometry()
         glPopMatrix()
-    # -------------------------
 
     for fireball in dragonFireballs:
         if fireball.get('state') == 'exploding':
@@ -1423,10 +1381,8 @@ def display():
     if camera.isThirdPerson:
         warrior.draw()
     
-    # --- MODIFIED FOR MULTIPLE DRAGONS ---
     for dragon in dragons:
         dragon.draw()
-    # ------------------------------------
 
     if not camera.isThirdPerson and warrior.isShieldActive:
         glMatrixMode(GL_PROJECTION)
@@ -1504,10 +1460,8 @@ def idle():
         updateGameLogic()
         camera.update()
         warrior.update()
-        # --- MODIFIED FOR MULTIPLE DRAGONS ---
         for dragon in dragons:
             dragon.update(warrior.position, playerProjectiles)
-        # ------------------------------------
     glutPostRedisplay()
 
 
