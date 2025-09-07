@@ -423,7 +423,8 @@ class Dragon:
         self.circling_direction = 1
 
     def take_damage(self, amount):
-        if not self.is_alive: return
+        if not self.is_alive:
+            return
         self.health -= amount
         print(f"Dragon hit! Health: {self.health}")
         if self.health <= 0:
@@ -441,11 +442,12 @@ class Dragon:
         # Evasion AI
         if not self.is_evading:
             for proj in player_projectiles:
-                dist_sq = sum([(self.position[i] - proj['pos'][i])**2 for i in range(3)])
-                if dist_sq < 100: # Evasion radius
+                dist_sq = sum(
+                    [(self.position[i] - proj['pos'][i])**2 for i in range(3)])
+                if dist_sq < 100:  # Evasion radius
                     self.evade(proj)
                     break
-        
+
         if self.is_evading and current_time > self.evade_timer:
             self.is_evading = False
 
@@ -457,23 +459,31 @@ class Dragon:
             target_z = player_pos[2] + radius * math.sin(self.circling_angle)
             self.target_position = [target_x, 30, target_z]
             if random.random() < 0.01:
-                self.circling_direction *= -1 # Change direction occasionally
+                self.circling_direction *= -1  # Change direction occasionally
 
-        direction = [self.target_position[i] - self.position[i] for i in range(3)]
+        direction = [self.target_position[i] - self.position[i]
+                     for i in range(3)]
         dist = math.sqrt(sum(d*d for d in direction))
         if dist > 1:
             move_speed = 0.2 if self.is_evading else 0.1
-            for i in range(3): self.position[i] += direction[i]/dist * move_speed
-            target_body_rot_y = math.degrees(math.atan2(direction[0], direction[2]))
-            angle_diff = (target_body_rot_y - self.body_rot_y + 180) % 360 - 180
+            for i in range(3):
+                self.position[i] += direction[i]/dist * move_speed
+            target_body_rot_y = math.degrees(
+                math.atan2(direction[0], direction[2]))
+            angle_diff = (target_body_rot_y -
+                          self.body_rot_y + 180) % 360 - 180
             self.body_rot_y += angle_diff * 0.05
 
         # Aim at player (head rotation)
-        direction_to_player = [player_pos[i] - self.position[i] for i in range(3)]
-        player_yaw = math.degrees(math.atan2(direction_to_player[0], direction_to_player[2]))
+        direction_to_player = [player_pos[i] -
+                               self.position[i] for i in range(3)]
+        player_yaw = math.degrees(math.atan2(
+            direction_to_player[0], direction_to_player[2]))
         self.head_rot_y = player_yaw - self.body_rot_y
-        dist_xz = math.sqrt(direction_to_player[0]**2 + direction_to_player[2]**2)
-        self.head_rot_x = -math.degrees(math.atan2(direction_to_player[1], dist_xz))
+        dist_xz = math.sqrt(
+            direction_to_player[0]**2 + direction_to_player[2]**2)
+        self.head_rot_x = - \
+            math.degrees(math.atan2(direction_to_player[1], dist_xz))
 
         # Attack AI
         if current_time > self.attack_cooldown and not self.is_evading:
@@ -484,14 +494,15 @@ class Dragon:
         self.wing_angle = math.sin(current_time * 5) * 40
         self.breathing_offset = math.sin(current_time * 2.0) * 0.1
         self.tail_sway_angle = math.sin(current_time * 1.0) * 8
-        if self.jaw_angle > 0: self.jaw_angle = max(0, self.jaw_angle - 50 * 0.016)
+        if self.jaw_angle > 0:
+            self.jaw_angle = max(0, self.jaw_angle - 50 * 0.016)
 
     def evade(self, projectile):
         self.is_evading = True
-        self.evade_timer = time.time() + 2.0 # Evade for 2 seconds
+        self.evade_timer = time.time() + 2.0  # Evade for 2 seconds
 
         # Simple evasion: move up and to the side
-        self.target_position[1] += 10 # Fly up
+        self.target_position[1] += 10  # Fly up
         # Move perpendicular to projectile path
         proj_vel = projectile['vel']
         side_vec = [-proj_vel[2], 0, proj_vel[0]]
@@ -503,7 +514,8 @@ class Dragon:
 
     def shoot_fireball(self):
         global dragon_fireballs
-        if not self.is_alive: return
+        if not self.is_alive:
+            return
         self.jaw_angle = 25
         speed = 25.0
         final_yaw_rad = math.radians(self.body_rot_y + self.head_rot_y)
@@ -517,16 +529,19 @@ class Dragon:
         start_pos[0] += neck_offset[2] * math.sin(body_rot_rad)
         start_pos[2] += neck_offset[2] * math.cos(body_rot_rad)
         start_pos[1] += neck_offset[1]
-        dragon_fireballs.append({'pos': start_pos, 'vel': [vel_x, vel_y, vel_z], 'life': 5.0, 'max_life': 5.0, 'size': 1.0})
+        dragon_fireballs.append({'pos': start_pos, 'vel': [
+                                vel_x, vel_y, vel_z], 'life': 5.0, 'max_life': 5.0, 'size': 1.0})
 
     def respawn(self):
-        self.position = [random.uniform(-WORLD_SIZE/2, WORLD_SIZE/2), random.uniform(30, 50), random.uniform(-WORLD_SIZE/2, WORLD_SIZE/2)]
+        self.position = [random.uniform(-WORLD_SIZE/2, WORLD_SIZE/2), random.uniform(
+            30, 50), random.uniform(-WORLD_SIZE/2, WORLD_SIZE/2)]
         self.health = DRAGON_MAX_HEALTH
         self.is_alive = True
         print("A new dragon has appeared!")
 
     def draw(self):
-        if not self.is_alive: return
+        if not self.is_alive:
+            return
         glPushMatrix()
         glTranslatef(self.position[0], self.position[1], self.position[2])
         glRotatef(-self.body_rot_y, 0, 1, 0)  # Rotate body
@@ -534,7 +549,8 @@ class Dragon:
         glTranslatef(0, self.breathing_offset, 0)
         self.draw_torso()
         self.draw_neck()
-        self.draw_head(self.breathing_offset, self.head_rot_x, self.head_rot_y, self.jaw_angle)
+        self.draw_head(self.breathing_offset, self.head_rot_x,
+                       self.head_rot_y, self.jaw_angle)
         self.draw_legs()
         self.draw_tail(self.tail_sway_angle)
         glPushMatrix()
@@ -759,7 +775,8 @@ class Camera:
         self.third_person_elevation = 15.0
 
     def is_colliding(self, next_pos):
-        collidable_types = {'boundary_walls': WALL_BLOCK_SIZE, 'random_walls': WALL_BLOCK_SIZE, 'trees': TREE_COLLISION_SIZE, 'shrubs': SHRUB_COLLISION_SIZE, 'temp_walls': WALL_BLOCK_SIZE}
+        collidable_types = {'boundary_walls': WALL_BLOCK_SIZE, 'random_walls': WALL_BLOCK_SIZE,
+                            'trees': TREE_COLLISION_SIZE, 'shrubs': SHRUB_COLLISION_SIZE, 'temp_walls': WALL_BLOCK_SIZE}
         for obj_key, obj_size in collidable_types.items():
             positions = object_positions.get(obj_key, [])
             if obj_key == 'temp_walls':
@@ -1032,16 +1049,21 @@ def find_safe_spawn_point():
         if is_position_safe(pos, 2.0):
             return pos
 
+
 def spawn_bomb():
-    bombs.append({'position': [random.uniform(-WORLD_SIZE, WORLD_SIZE), 0.5, random.uniform(-WORLD_SIZE, WORLD_SIZE)], 'state': 'idle', 'triggered_time': 0, 'explosion_start_time': 0})
+    bombs.append({'position': [random.uniform(-WORLD_SIZE, WORLD_SIZE), 0.5, random.uniform(-WORLD_SIZE,
+                 WORLD_SIZE)], 'state': 'idle', 'triggered_time': 0, 'explosion_start_time': 0})
+
 
 def spawn_blocking_wall():
     yaw_rad = math.radians(camera.rotation[0])
     forward_vec = [math.sin(yaw_rad), 0, -math.cos(yaw_rad)]
     strafe_vec = [math.cos(yaw_rad), 0, math.sin(yaw_rad)]
-    center_pos = [warrior.position[0]+forward_vec[0]*WALL_SPAWN_DISTANCE, 0, warrior.position[2]+forward_vec[2]*WALL_SPAWN_DISTANCE]
+    center_pos = [warrior.position[0]+forward_vec[0]*WALL_SPAWN_DISTANCE,
+                  0, warrior.position[2]+forward_vec[2]*WALL_SPAWN_DISTANCE]
     for i in range(-1, 2):
-        object_positions['temp_walls'].append({'pos': [center_pos[0]+strafe_vec[0]*i*WALL_BLOCK_SIZE, center_pos[1], center_pos[2]+strafe_vec[2]*i*WALL_BLOCK_SIZE], 'despawn_time': time.time()+WALL_LIFETIME})
+        object_positions['temp_walls'].append({'pos': [center_pos[0]+strafe_vec[0]*i*WALL_BLOCK_SIZE, center_pos[1],
+                                              center_pos[2]+strafe_vec[2]*i*WALL_BLOCK_SIZE], 'despawn_time': time.time()+WALL_LIFETIME})
     print("A blocking wall appears!")
 
 
@@ -1066,7 +1088,8 @@ def update_game_logic():
             if current_time > bomb['explosion_start_time']+BOMB_EXPLOSION_DURATION:
                 bombs.remove(bomb)
                 spawn_bomb()
-    object_positions['temp_walls'] = [w for w in object_positions['temp_walls'] if current_time < w['despawn_time']]
+    object_positions['temp_walls'] = [
+        w for w in object_positions['temp_walls'] if current_time < w['despawn_time']]
     if current_time > game_state.get('last_wall_check', 0) + WALL_SPAWN_INTERVAL:
         game_state['last_wall_check'] = current_time
         if random.random() < WALL_SPAWN_CHANCE:
@@ -1189,11 +1212,13 @@ def display():
         if bomb.get('state') in ['idle', 'triggered']:
             glPushMatrix()
             glTranslatef(*bomb['position'])
-            glColor3f(1, 0, 0) if bomb['state'] == 'triggered' and int(time.time()*10) % 2 == 0 else glColor3f(0.8, 0.8, 0)
+            glColor3f(1, 0, 0) if bomb['state'] == 'triggered' and int(
+                time.time()*10) % 2 == 0 else glColor3f(0.8, 0.8, 0)
             glutSolidSphere(0.5, 16, 16)
             glPopMatrix()
         elif bomb.get('state') == 'exploding':
-            progress = (time.time()-bomb['explosion_start_time'])/BOMB_EXPLOSION_DURATION
+            progress = (
+                time.time()-bomb['explosion_start_time'])/BOMB_EXPLOSION_DURATION
             radius = progress*BOMB_EXPLOSION_MAX_RADIUS
             alpha = 0.8*(1.0-progress)
             glPushMatrix()
