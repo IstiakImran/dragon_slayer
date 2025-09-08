@@ -7,7 +7,6 @@ import time
 import sys
 
 # --- Global State Variables ---
-# We use global variables here as is common in simple GLUT scripts.
 
 # Camera and Mouse Controls
 camera_rot_x = -20
